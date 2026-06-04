@@ -1,6 +1,6 @@
 # 🎱 Billiard Master Simulation
 
-**Billiard Master** adalah simulasi permainan biliar **8-ball** berbasis desktop yang dikembangkan menggunakan **Python** dan **Pygame**. Proyek ini dirancang sebagai **Final Project** untuk mata kuliah **Desain Pemrograman Berorientasi Objek**, dengan fokus pada penerapan **OOP**, **fisika 2D realistis**, serta **manajemen data lokal**.
+**Billiard Master** adalah simulasi permainan biliar **8-ball** berbasis desktop yang dikembangkan menggunakan **Python** dan **Pygame**. Proyek ini dirancang sebagai **Final Project** untuk mata kuliah **Desain dan Pemrograman Berorientasi Objek** serta **Rekayasa Perangkat Lunak**, dengan fokus pada penerapan **OOP**, **fisika 2D realistis**, serta **manajemen data lokal**.
 
 ---
 
@@ -170,7 +170,7 @@ Executable ini dapat dibagikan dan dijalankan di komputer lain tanpa instalasi P
 
 ---
 
-## 👥 Tim Pengembang (Kelompok 8)
+## 👥 Tim Pengembang (Kelompok 7)
 
 * **Fujiono Nur Ikhsan** (1313624008)
 * **Muhammad Daffa Ramdhani** (1313624025)
@@ -181,7 +181,7 @@ Executable ini dapat dibagikan dan dijalankan di komputer lain tanpa instalasi P
 ## 📄 Lisensi
 
 Proyek ini dibuat **khusus untuk keperluan akademik** sebagai Tugas Akhir Mata Kuliah
-**Desain Pemrograman Berorientasi Objek**.
+**Desain dan Pemrograman Berorientasi Objek** serta **Rekayasa Perangkat Lunak**.
 
 ---
 
