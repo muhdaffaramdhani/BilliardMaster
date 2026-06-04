@@ -40,21 +40,39 @@ Billiard Master mensimulasikan permainan biliar 8-ball dengan aturan resmi dan m
   - Klik pertama: mengunci arah  
   - Tarik mouse: mengatur kekuatan  
   - Klik kedua: menembak
-
+  
 - **Peraturan 8-Ball Resmi**
   - Foul jika bola putih masuk lubang  
   - Penentuan otomatis bola **Solid / Stripes**  
   - Kondisi menang/kalah berdasarkan bola 8  
 
-### 🏆 Fitur Final Update
-- **Local Leaderboard**  
-  Menyimpan nama pemain dan jumlah kemenangan secara permanen menggunakan file JSON.
-  
-- **Player Name Input**  
-  Pemain dapat memasukkan nama sebelum pertandingan dimulai.
+- **VS Computer AI Mode** (New!)
+  - Bermain single player melawan bot AI cerdas.
+  - AI menganalisis lintasan bola ke 6 lubang berbeda menggunakan model heuristik untuk menemukan tembakan terbaik.
+  - Alur bermain AI didukung animasi natural (aiming rotation, power pull-back, short pause) yang menyerupai perilaku manusia.
 
-- **Interactive UI**  
-  Menu modern, tutorial dalam game, serta pengaturan sensitivitas mouse.
+### 🏆 Fitur Final Update & Pengaturan
+- **Autocomplete & Dropdown Saran Nama** (New!)
+  - Mengingat nama pemain yang pernah di-input sebelumnya lewat database lokal `player_history.json`.
+  - Memberikan saran nama otomatis saat mengetik di input box.
+  
+- **Tab Focus Navigation** (New!)
+  - Memudahkan navigasi form input nama dengan menekan tombol **Tab** untuk berpindah focus field (Player 1 <=> Player 2).
+
+- **Realistis Procedural Audio Engine** (New!)
+  - Menghasilkan audio billiard beneran secara matematis (tanpa file eksternal):
+    - *Ball Hit*: clack nyaring khas bola akrilik.
+    - *Cue Hit*: suara kayu stik menyodok bola putih.
+    - *Wall Cushion*: thud teredam saat memantul di karet meja.
+    - *Pocket Pot*: gabungan suara rattle stik pembatas dan drop lubang.
+  - Volume efek suara disesuaikan secara dinamis berdasarkan kekuatan benturan/kecepatan bola.
+
+- **Menu Pengaturan & Pause Fleksibel** (New!)
+  - Tombol **SETTINGS** terintegrasi di pause menu dalam game, sehingga pengaturan suara/sensitivitas bisa diubah tanpa perlu keluar dari match.
+  - Pengaturan sensitivitas stik kini memiliki 5 tingkat presisi dan bisa diubah menggunakan mouse atau digeser dengan tombol panah kiri-kanan saat di-hover.
+  
+- **Local Leaderboard**  
+  Menyimpan nama pemenang dan jumlah kemenangan secara permanen menggunakan file JSON.
 
 ---
 
@@ -64,8 +82,8 @@ Billiard Master mensimulasikan permainan biliar 8-ball dengan aturan resmi dan m
 |--------|----------|
 | Bahasa | Python 3.x |
 | Library | Pygame |
-| Audio | Synthesized Sound (tanpa file eksternal) |
-| Data Storage | JSON (Leaderboard) |
+| Audio | Procedural Synthesized Sound (Stereo/Mono, Volume Dynamic) |
+| Data Storage | JSON (Leaderboard & Player History) |
 
 ---
 
@@ -75,16 +93,19 @@ Proyek ini dirancang secara modular dengan prinsip **OOP**:
 
 ```
 📦 BilliardMaster
-┣ 📜 main.py              # GameManager (Game Loop & State Management)
+┣ 📜 main.py              # GameManager (Game Loop, State Machine, AI, Input form)
 ┣ 📜 physics.py           # PhysicsEngine (Collision & Vector Math)
-┣ 📜 ball.py              # Ball, CueBall, ObjectBall (Inheritance)
+┣ 📜 ball.py              # Ball, CueBall, ObjectBall (Inheritance & Collision)
 ┣ 📜 cue.py               # Cue Stick & Aiming Logic
-┣ 📜 table.py             # Meja, Cushion, Area Permainan
+┣ 📜 table.py             # Meja, Cushion, Area Lubang Permainan
 ┣ 📜 leaderboard.py       # I/O JSON Leaderboard
-┣ 📜 config.py            # Konstanta Global (Warna, FPS, Resolusi)
+┣ 📜 config.py            # Konstanta Global (Warna, FPS, Sensitivity Levels)
 ┣ 📜 requirements.txt
-┗ 📜 leaderboard.json
-````
+┣ 📜 leaderboard.json
+┗ 📜 player_history.json  # Database riwayat input nama user
+```
+
+---
 
 ## 🚀 Instalasi & Menjalankan Program
 
@@ -96,7 +117,7 @@ Jalankan perintah berikut di terminal:
 
 ```bash
 pip install -r requirements.txt
-````
+```
 
 ### 3️⃣ Menjalankan Game
 
@@ -136,22 +157,24 @@ Executable ini dapat dibagikan dan dijalankan di komputer lain tanpa instalasi P
 
 ## 🕹️ Kontrol Permainan
 
-| Aksi       | Input                      |
+| Aksi | Input |
 | ---------- | -------------------------- |
-| Membidik   | Gerakkan Mouse             |
-| Kunci Arah | Klik Kiri (1x)             |
-| Atur Power | Tarik Mouse ke Belakang    |
-| Tembak     | Klik Kiri (2x)             |
-| Batal      | Klik Kanan                 |
-| Pause      | Tombol di Pojok Kanan Atas |
+| Membidik | Gerakkan Mouse |
+| Kunci Arah | Klik Kiri (1x) |
+| Atur Power | Tarik Mouse ke Belakang |
+| Tembak | Klik Kiri (2x) |
+| Batal Tembakan | Klik Kanan |
+| Pindah Input Nama | Tombol **Tab** |
+| Ubah Sensitivitas | Hover + **Panah Kanan / Panah Kiri** (Di Menu Settings) |
+| Pause Game | Tombol di Pojok Kanan Atas |
 
 ---
 
 ## 👥 Tim Pengembang (Kelompok 8)
 
+* **Fujiono Nur Ikhsan** (1313624008)
 * **Muhammad Daffa Ramdhani** (1313624025)
-* **Ricky Darmawan** (1313624007)
-* **Muhammad Fabio Usama** (1313624054)
+* **Leonard Dwi Chrisdiasa** (1313624031)
 
 ---
 
