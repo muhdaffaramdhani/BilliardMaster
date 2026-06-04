@@ -47,9 +47,10 @@ Billiard Master mensimulasikan permainan biliar 8-ball dengan aturan resmi dan m
   - Kondisi menang/kalah berdasarkan bola 8  
 
 - **VS Computer AI Mode** (New!)
-  - Bermain single player melawan bot AI cerdas.
+  - Bermain single player melawan bot AI dengan 4 tingkat kesulitan: **EASY**, **MEDIUM**, **HARD**, dan **MASTER**.
   - AI menganalisis lintasan bola ke 6 lubang berbeda menggunakan model heuristik untuk menemukan tembakan terbaik.
   - Alur bermain AI didukung animasi natural (aiming rotation, power pull-back, short pause) yang menyerupai perilaku manusia.
+  - Akurasi tembakan dan strategi pemilihan bola disesuaikan secara dinamis berdasarkan tingkat kesulitan (pada level **MASTER**, tembakan AI menjadi 100% akurat secara matematis).
 
 ### 🏆 Fitur Final Update & Pengaturan
 - **Autocomplete & Dropdown Saran Nama** (New!)
@@ -93,7 +94,8 @@ Proyek ini dirancang secara modular dengan prinsip **OOP**:
 
 ```
 📦 BilliardMaster
-┣ 📜 main.py              # GameManager (Game Loop, State Machine, AI, Input form)
+┣ 📜 main.py              # GameManager (Game Loop, State Machine, Input form)
+┣ 📜 computer.py          # BilliardAI (AI Decision-making Heuristics & Difficulty levels)
 ┣ 📜 physics.py           # PhysicsEngine (Collision & Vector Math)
 ┣ 📜 ball.py              # Ball, CueBall, ObjectBall (Inheritance & Collision)
 ┣ 📜 cue.py               # Cue Stick & Aiming Logic

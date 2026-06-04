@@ -10,6 +10,7 @@ from table import Table
 from cue import Cue
 from physics import PhysicsEngine
 from leaderboard import Leaderboard
+from computer import BilliardAI
 
 class SoundGenerator:
     """Class untuk menghasilkan efek suara sintetis billiard yang realistis tanpa file eksternal"""
@@ -276,6 +277,8 @@ class GameManager:
         self.winner_name = ""
 
         self.vs_computer = False
+        self.computer_difficulty = 1  # 0: EASY, 1: MEDIUM, 2: HARD, 3: MASTER
+        self.ai_engine = BilliardAI(self.computer_difficulty)
         self.settings_back_state = STATE_MENU
         self.ai_state = None
         self.ai_timer = 0
@@ -344,6 +347,7 @@ class GameManager:
         self.btn_mode_toggle = Button(cx - 150, 205, 300, 45, "MODE: 2 PLAYERS", ACCENT_COLOR)
         self.input_p1 = TextInput(cx - 150, 270, 300, 45, "Player 1 Name")
         self.input_p2 = TextInput(cx - 150, 335, 300, 45, "Player 2 Name")
+        self.btn_difficulty = Button(cx - 150, 335, 300, 45, "DIFFICULTY: MEDIUM", ACCENT_COLOR)
         self.btn_start_match = Button(cx - 100, 410, 200, 45, "START MATCH", GREEN)
 
     def reset_game_objects(self):
@@ -438,6 +442,12 @@ class GameManager:
                                 self.btn_mode_toggle.text = "MODE: 2 PLAYERS"
                                 if self.input_p2.text == "Computer":
                                     self.input_p2.text = ""
+                        
+                        if self.vs_computer and self.btn_difficulty.is_clicked(event):
+                            self.computer_difficulty = (self.computer_difficulty + 1) % 4
+                            diff_names = ["EASY", "MEDIUM", "HARD", "MASTER"]
+                            self.btn_difficulty.text = f"DIFFICULTY: {diff_names[self.computer_difficulty]}"
+                            self.ai_engine.difficulty = self.computer_difficulty
                         
                         self.input_p1.handle_event(event, self.player_history)
                         if not self.vs_computer:
@@ -667,7 +677,12 @@ class GameManager:
         self.btn_mode_toggle.draw(self.screen)
         
         self.input_p1.draw_box(self.screen)
-        self.input_p2.draw_box(self.screen)
+        
+        if self.vs_computer:
+            self.btn_difficulty.check_hover(mouse_pos)
+            self.btn_difficulty.draw(self.screen)
+        else:
+            self.input_p2.draw_box(self.screen)
         
         self.btn_start_match.check_hover(mouse_pos)
         self.btn_start_match.draw(self.screen)
@@ -677,7 +692,8 @@ class GameManager:
         
         # Draw suggestions on top of everything
         self.input_p1.draw_suggestions(self.screen, mouse_pos)
-        self.input_p2.draw_suggestions(self.screen, mouse_pos)
+        if not self.vs_computer:
+            self.input_p2.draw_suggestions(self.screen, mouse_pos)
 
     def draw_leaderboard(self, mouse_pos):
         x, y, w, h = self.draw_panel("TOP PLAYERS", height=500)
@@ -904,108 +920,10 @@ class GameManager:
                 self.ai_state = None
 
     def calculate_ai_shot(self):
-        p_type = self.player_assignments[2]
-        
-        if p_type is None:
-            allowed_nums = [b.number for b in self.balls if b.number != 0 and b.number != 8 and not b.potted]
-            if not allowed_nums:
-                allowed_nums = [8]
-        else:
-            if p_type == 'solid':
-                allowed_nums = [num for num in range(1, 8) if next((b for b in self.balls if b.number == num and not b.potted), None)]
-            else:
-                allowed_nums = [num for num in range(9, 16) if next((b for b in self.balls if b.number == num and not b.potted), None)]
-            
-            if not allowed_nums:
-                allowed_nums = [8]
-                
-        allowed_balls = [b for b in self.balls if b.number in allowed_nums and not b.potted]
-        
-        best_score = -float('inf')
-        best_angle = 0
-        best_power = 12
-        
-        pockets = self.table.pockets
-        cue_ball = self.cue_ball
-        
-        for ball in allowed_balls:
-            for pocket in pockets:
-                dx_pocket = ball.pos.x - pocket[0]
-                dy_pocket = ball.pos.y - pocket[1]
-                dist_pocket = math.hypot(dx_pocket, dy_pocket)
-                if dist_pocket == 0: continue
-                
-                dir_pocket_x = dx_pocket / dist_pocket
-                dir_pocket_y = dy_pocket / dist_pocket
-                
-                contact_x = ball.pos.x + dir_pocket_x * (BALL_RADIUS * 2)
-                contact_y = ball.pos.y + dir_pocket_y * (BALL_RADIUS * 2)
-                contact_pos = pygame.math.Vector2(contact_x, contact_y)
-                
-                dx_cue = contact_x - cue_ball.pos.x
-                dy_cue = contact_y - cue_ball.pos.y
-                dist_cue = math.hypot(dx_cue, dy_cue)
-                if dist_cue == 0: continue
-                
-                dir_cue_x = dx_cue / dist_cue
-                dir_cue_y = dy_cue / dist_cue
-                dir_target_pocket_x = -dir_pocket_x
-                dir_target_pocket_y = -dir_pocket_y
-                
-                dot = dir_cue_x * dir_target_pocket_x + dir_cue_y * dir_target_pocket_y
-                
-                if dot < 0.15:
-                    continue
-                    
-                score = dot * 120 - dist_pocket * 0.15 - dist_cue * 0.05
-                
-                cue_to_contact_dir = contact_pos - cue_ball.pos
-                blocked = False
-                for other in self.balls:
-                    if other == cue_ball or other == ball or other.potted:
-                        continue
-                    to_other = other.pos - cue_ball.pos
-                    proj = to_other.dot(cue_to_contact_dir.normalize())
-                    if 0 < proj < dist_cue:
-                        closest_point = cue_ball.pos + cue_to_contact_dir.normalize() * proj
-                        if closest_point.distance_to(other.pos) < BALL_RADIUS * 1.9:
-                            blocked = True
-                            break
-                            
-                target_to_pocket_dir = pygame.math.Vector2(pocket[0] - ball.pos.x, pocket[1] - ball.pos.y)
-                for other in self.balls:
-                    if other == cue_ball or other == ball or other.potted:
-                        continue
-                    to_other = other.pos - ball.pos
-                    proj = to_other.dot(target_to_pocket_dir.normalize())
-                    if 0 < proj < dist_pocket:
-                        closest_point = ball.pos + target_to_pocket_dir.normalize() * proj
-                        if closest_point.distance_to(other.pos) < BALL_RADIUS * 1.9:
-                            blocked = True
-                            break
-                            
-                if blocked:
-                    score -= 80
-                    
-                if score > best_score:
-                    best_score = score
-                    best_angle = math.atan2(dy_cue, dx_cue)
-                    dist_total = dist_cue + dist_pocket
-                    best_power = min(max(5 + (dist_total / 90.0) * 2.5, 7), 18)
-                    
-        if best_score == -float('inf') and allowed_balls:
-            allowed_balls.sort(key=lambda b: b.pos.distance_to(cue_ball.pos))
-            target = allowed_balls[0]
-            dx = target.pos.x - cue_ball.pos.x
-            dy = target.pos.y - cue_ball.pos.y
-            best_angle = math.atan2(dy, dx)
-            best_power = 10
-            
-        best_angle += random.uniform(-0.03, 0.03)
-        best_power = min(max(best_power + random.uniform(-1.0, 1.0), 4.0), 20.0)
-        
-        self.ai_target_angle = best_angle
-        self.ai_target_power = best_power
+        self.ai_engine.difficulty = self.computer_difficulty
+        angle, power = self.ai_engine.calculate_shot(self.balls, self.table, self.player_assignments, self.cue_ball)
+        self.ai_target_angle = angle
+        self.ai_target_power = power
 
     def draw_game_over(self, mouse_pos):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
