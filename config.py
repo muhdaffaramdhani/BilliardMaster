@@ -46,3 +46,6 @@ STATE_PAUSED = "paused"
 STATE_TEAM = "team"
 
 DEBUG_MODE = False
+
+SENS_VALUES = [0.2, 0.5, 1.0, 1.5, 2.0]
+SENS_NAMES = ["Level 1", "Level 2", "Level 3", "Level 4", "Level 5"]
