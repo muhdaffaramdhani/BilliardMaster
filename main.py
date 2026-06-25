@@ -9,9 +9,11 @@ from ball import CueBall, ObjectBall
 from table import Table
 from cue import Cue
 from physics import PhysicsEngine
+from leaderboard import Leaderboard
+from computer import BilliardAI
 
 class SoundGenerator:
-    """Class stub untuk efek suara (non-fungsional pada Week 5)"""
+    """Class stub untuk efek suara (non-fungsional pada Week 6)"""
     def __init__(self):
         self.enabled = False
         self.has_mixer = False
@@ -151,7 +153,7 @@ class GameManager:
         
         self.state = STATE_MENU
         self.sound_manager = SoundGenerator()
-        self.leaderboard = None
+        self.leaderboard = Leaderboard()
 
         self.ball_colors = {
             1: YELLOW, 2: BLUE, 3: RED, 4: PURPLE, 5: ORANGE, 6: GREEN, 7: MAROON,
@@ -169,13 +171,13 @@ class GameManager:
 
         self.vs_computer = False
         self.computer_difficulty = 1  # 0: EASY, 1: MEDIUM, 2: HARD, 3: MASTER
-        self.ai_engine = None
+        self.ai_engine = BilliardAI(self.computer_difficulty)
         self.settings_back_state = STATE_MENU
         self.ai_state = None
         self.ai_timer = 0
         self.ai_target_angle = 0
         self.ai_target_power = 0
-        self.player_history = []
+        self.player_history = self.load_player_history()
         self.debug_mode = DEBUG_MODE
 
         self.init_ui()
@@ -183,10 +185,29 @@ class GameManager:
         self.reset_game_objects()
 
     def load_player_history(self):
-        return []
+        import json
+        if not os.path.exists("player_history.json"):
+            return []
+        try:
+            with open("player_history.json", "r") as f:
+                return json.load(f)
+        except Exception:
+            return []
 
     def save_player_history(self, name):
-        pass
+        import json
+        name = name.strip()
+        if not name or name.lower() == "computer":
+            return
+        history = self.load_player_history()
+        if not any(h.lower() == name.lower() for h in history):
+            history.append(name)
+            try:
+                with open("player_history.json", "w") as f:
+                    json.dump(history, f, indent=4)
+            except Exception:
+                pass
+        self.player_history = history
 
     def init_ui(self):
         cx = SCREEN_WIDTH // 2
@@ -562,10 +583,12 @@ class GameManager:
                 winner_id = current_player
                 self.winner_name = self.p1_name if winner_id == 1 else self.p2_name
                 self.winner_text = f"VICTORY! {self.winner_name.upper()} WINS!"
+                self.leaderboard.add_win(self.winner_name)
             else:
                 winner_id = 2 if current_player == 1 else 1
                 self.winner_name = self.p1_name if winner_id == 1 else self.p2_name
                 self.winner_text = f"GAME OVER! {self.winner_name.upper()} WINS!"
+                self.leaderboard.add_win(self.winner_name)
                 
             self.state = STATE_GAME_OVER
         else:
@@ -635,11 +658,38 @@ class GameManager:
             self.input_p2.draw_suggestions(self.screen, mouse_pos)
 
     def draw_leaderboard(self, mouse_pos):
-        self.draw_panel("LEADERBOARD")
-        txt = self.font.render("Leaderboard is not available in Week 5.", True, WHITE)
-        self.screen.blit(txt, (SCREEN_WIDTH//2 - txt.get_width()//2, 300))
-        self.btn_back_panel.check_hover(mouse_pos)
-        self.btn_back_panel.draw(self.screen)
+        x, y, w, h = self.draw_panel("TOP PLAYERS", height=500)
+        
+        top_players = self.leaderboard.get_top_players(5)
+        
+        start_y = y + 100
+        headers = ["Rank", "Name", "Wins"]
+        gx = [x + 50, x + 150, x + 450]
+        for i, h_text in enumerate(headers):
+            surf = self.font.render(h_text, True, ACCENT_COLOR)
+            self.screen.blit(surf, (gx[i], start_y))
+            
+        start_y += 30
+        pygame.draw.line(self.screen, GREY, (x + 30, start_y), (x + w - 30, start_y), 1)
+        start_y += 10
+        
+        if not top_players:
+            txt = self.font.render("No records yet.", True, GREY)
+            self.screen.blit(txt, (x + w//2 - txt.get_width()//2, start_y + 20))
+        else:
+            for i, player in enumerate(top_players):
+                col = YELLOW if i == 0 else WHITE
+                
+                rank_txt = self.font.render(f"#{i+1}", True, col)
+                name_txt = self.font.render(player['name'], True, col)
+                wins_txt = self.font.render(str(player['wins']), True, col)
+                
+                self.screen.blit(rank_txt, (gx[0], start_y))
+                self.screen.blit(name_txt, (gx[1], start_y))
+                self.screen.blit(wins_txt, (gx[2], start_y))
+                
+                start_y += 40
+
         self.btn_back_panel.check_hover(mouse_pos)
         self.btn_back_panel.draw(self.screen)
 
@@ -794,10 +844,53 @@ class GameManager:
             btn.draw(self.screen)
 
     def update_ai_logic(self):
-        pass
+        if self.ai_state is None:
+            self.ai_state = 'thinking'
+            self.ai_timer = 45  # 0.75s thinking delay
+            
+        elif self.ai_state == 'thinking':
+            self.ai_timer -= 1
+            if self.ai_timer <= 0:
+                self.calculate_ai_shot()
+                self.ai_state = 'aiming'
+                self.cue.state = 0
+                
+        elif self.ai_state == 'aiming':
+            diff = (self.ai_target_angle - self.cue.angle + math.pi) % (2 * math.pi) - math.pi
+            step = 0.04
+            if abs(diff) < step:
+                self.cue.angle = self.ai_target_angle
+                self.ai_state = 'powering'
+                self.cue.state = 1
+            else:
+                self.cue.angle += math.copysign(step, diff)
+                
+        elif self.ai_state == 'powering':
+            step = 0.4
+            if self.cue.power >= self.ai_target_power:
+                self.cue.power = self.ai_target_power
+                self.ai_state = 'shooting'
+                self.ai_timer = 15  # brief pause before shooting
+            else:
+                self.cue.power += step
+                
+        elif self.ai_state == 'shooting':
+            self.ai_timer -= 1
+            if self.ai_timer <= 0:
+                vol = min(1.0, self.ai_target_power / self.cue.max_power) if self.ai_target_power > 0 else 0.5
+                self.foul_this_turn = False
+                self.cue_ball_hit_something = False
+                self.first_hit_ball = None
+                self.cue.shoot()
+                self.sound_manager.play('cue_hit', volume=vol)
+                self.is_moving = True
+                self.ai_state = None
 
     def calculate_ai_shot(self):
-        pass
+        self.ai_engine.difficulty = self.computer_difficulty
+        angle, power = self.ai_engine.calculate_shot(self.balls, self.table, self.player_assignments, self.cue_ball)
+        self.ai_target_angle = angle
+        self.ai_target_power = power
 
     def draw_game_over(self, mouse_pos):
         overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
