@@ -6,13 +6,24 @@ from ball import CueBall, ObjectBall
 from table import Table
 from cue import Cue
 
+def get_custom_font(size, bold=False, italic=False):
+    font_names = ['Segoe UI', 'Trebuchet MS', 'Arial']
+    for name in font_names:
+        font_path = pygame.font.match_font(name, bold=bold, italic=italic)
+        if font_path:
+            try:
+                return pygame.font.Font(font_path, size)
+            except Exception:
+                continue
+    return pygame.font.SysFont('Arial', size, bold=bold, italic=italic)
+
 class GameManager:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Billiard 8-Ball Master - Week 2 Baseline")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont('Arial', 10, bold=True)
+        self.font = get_custom_font(10, bold=True)
         self.reset_game_objects()
 
     def reset_game_objects(self):
