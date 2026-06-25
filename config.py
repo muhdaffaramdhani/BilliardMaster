@@ -17,6 +17,10 @@ RED    = (220, 50,  50)
 YELLOW = (240, 200, 0)
 BLUE   = (50,  100, 220)
 BROWN  = (101, 67,  33)
+UI_BG = (15, 18, 22)
+ACCENT_COLOR = (230, 130, 0)
+BUTTON_HOVER = (40, 44, 52)
+ACCENT_DIM = (160, 90, 0)
 
 # Application States
 STATE_MENU         = "MENU"
