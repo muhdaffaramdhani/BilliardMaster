@@ -28,25 +28,24 @@ class Ball:
             self.velocity = pygame.math.Vector2(0, 0)
 
     def check_wall_collision(self, table_rect):
-        if self.potted: return False
-        
+        # Placeholder wall collision for Week 2 baseline
         collided = False
         if self.pos.x - self.radius < table_rect.left:
             self.pos.x = table_rect.left + self.radius
-            self.velocity.x *= -0.9
+            self.velocity.x *= -1
             collided = True
         elif self.pos.x + self.radius > table_rect.right:
             self.pos.x = table_rect.right - self.radius
-            self.velocity.x *= -0.9
+            self.velocity.x *= -1
             collided = True
 
         if self.pos.y - self.radius < table_rect.top:
             self.pos.y = table_rect.top + self.radius
-            self.velocity.y *= -0.9
+            self.velocity.y *= -1
             collided = True
         elif self.pos.y + self.radius > table_rect.bottom:
             self.pos.y = table_rect.bottom - self.radius
-            self.velocity.y *= -0.9
+            self.velocity.y *= -1
             collided = True
             
         return collided
@@ -69,7 +68,7 @@ class Ball:
         
         if self.type == "stripe":
             pygame.draw.circle(surface, WHITE, (int(self.pos.x), int(self.pos.y)), self.radius - 3)
-            rect_h = 10
+            rect_h = 6
             pygame.draw.rect(surface, self.color, (self.pos.x - self.radius + 2, self.pos.y - rect_h//2, (self.radius*2) - 4, rect_h))
         
         if self.number > 0:
