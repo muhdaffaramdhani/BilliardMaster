@@ -11,9 +11,9 @@ class GameManager:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-        pygame.display.set_caption("Billiard 8-Ball Master - Week 3 Physics Engine")
+        pygame.display.set_caption("Billiard 8-Ball Master - Week 4 Cue Stick Mechanics")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont('Arial', 10, bold=True)
+        self.font = pygame.font.SysFont('Arial', 12, bold=True)
         self.reset_game_objects()
 
     def reset_game_objects(self):
@@ -22,6 +22,7 @@ class GameManager:
         self.balls = [self.cue_ball]
         
         self.cue = Cue(self.cue_ball)
+        self.cue.sensitivity = 1.0  # default sensitivity
         
         start_x = TABLE_X + 600
         start_y = TABLE_Y + PLAY_HEIGHT // 2
@@ -45,6 +46,8 @@ class GameManager:
                 self.balls.append(ObjectBall(x, y, c, num))
                 ball_idx += 1
                 if ball_idx >= 15: break
+                
+        self.is_moving = False
 
     def run(self):
         running = True
@@ -55,17 +58,20 @@ class GameManager:
                     running = False
                     pygame.quit()
                     sys.exit()
-                elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    # Klik kiri menembak bola putih ke arah mouse untuk pengujian fisika
-                    dx = mouse_pos[0] - self.cue_ball.pos.x
-                    dy = mouse_pos[1] - self.cue_ball.pos.y
-                    dist = math.hypot(dx, dy)
-                    if dist > 0:
-                        angle = math.atan2(dy, dx)
-                        self.cue_ball.hit(12.0, angle)
+                
+                if not self.is_moving:
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        if event.button == 1:
+                            # Left click handles cue stick aiming/power/shoot states
+                            if self.cue.handle_click():
+                                self.is_moving = True
+                        elif event.button == 3:
+                            # Right click cancels shot
+                            self.cue.cancel_shot()
 
-            # Update stik
-            self.cue.update(mouse_pos)
+            # Update stik hanya jika bola diam
+            if not self.is_moving:
+                self.cue.update(mouse_pos)
             
             # Physics sub-steps (10 sub-steps per frame)
             physics_steps = 10
@@ -81,13 +87,20 @@ class GameManager:
                     for j in range(i + 1, len(self.balls)):
                         PhysicsEngine.resolve_collision(self.balls[i], self.balls[j])
             
-            # Gesekan pasca sub-steps
+            # Gesekan dan deteksi apakah bola masih bergerak
+            moving_count = 0
             for ball in self.balls:
                 if ball.potted: continue
                 if ball.velocity.length() > 0.05:
                     ball.velocity *= ball.friction
+                    moving_count += 1
                 else:
                     ball.velocity = pygame.math.Vector2(0, 0)
+
+            # Transisi dari bergerak ke diam
+            if self.is_moving and moving_count == 0:
+                self.is_moving = False
+                self.cue.state = 0
 
             # Render
             self.screen.fill(UI_BG)
@@ -96,7 +109,22 @@ class GameManager:
             for ball in self.balls:
                 ball.draw(self.screen, self.font)
                 
-            self.cue.draw(self.screen)
+            # Render stik dan guideline jika bola diam
+            if not self.is_moving:
+                self.cue.draw(self.screen, self.balls, self.table.rect)
+                
+            # Render Power Bar
+            bar_x, bar_y = SCREEN_WIDTH // 2 - 100, 25
+            bar_w, bar_h = 200, 30
+            pygame.draw.rect(self.screen, BLACK, (bar_x, bar_y, bar_w, bar_h), border_radius=5)
+            pygame.draw.rect(self.screen, WHITE, (bar_x, bar_y, bar_w, bar_h), 2, border_radius=5)
+            ratio = self.cue.power / self.cue.max_power
+            if ratio > 0:
+                fill_w = int((bar_w - 4) * ratio)
+                fill_color = (255, int(255 * (1 - ratio)), 0) 
+                pygame.draw.rect(self.screen, fill_color, (bar_x + 2, bar_y + 2, fill_w, bar_h - 4), border_radius=3)
+            pow_txt = self.font.render("POWER", True, WHITE)
+            self.screen.blit(pow_txt, (bar_x + bar_w // 2 - pow_txt.get_width() // 2, bar_y + 8))
             
             pygame.display.flip()
             self.clock.tick(FPS)
