@@ -7,13 +7,24 @@ from table import Table
 from cue import Cue
 from physics import PhysicsEngine
 
+def get_custom_font(size, bold=False, italic=False):
+    font_names = ['Segoe UI', 'Trebuchet MS', 'Arial']
+    for name in font_names:
+        font_path = pygame.font.match_font(name, bold=bold, italic=italic)
+        if font_path:
+            try:
+                return pygame.font.Font(font_path, size)
+            except Exception:
+                continue
+    return pygame.font.SysFont('Arial', size, bold=bold, italic=italic)
+
 class GameManager:
     def __init__(self):
         pygame.init()
         self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
         pygame.display.set_caption("Billiard 8-Ball Master - Week 4 Cue Stick Mechanics")
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.SysFont('Arial', 12, bold=True)
+        self.font = get_custom_font(12, bold=True)
         self.reset_game_objects()
 
     def reset_game_objects(self):
@@ -123,8 +134,20 @@ class GameManager:
                 fill_w = int((bar_w - 4) * ratio)
                 fill_color = (255, int(255 * (1 - ratio)), 0) 
                 pygame.draw.rect(self.screen, fill_color, (bar_x + 2, bar_y + 2, fill_w, bar_h - 4), border_radius=3)
-            pow_txt = self.font.render("POWER", True, WHITE)
-            self.screen.blit(pow_txt, (bar_x + bar_w // 2 - pow_txt.get_width() // 2, bar_y + 8))
+                
+                pow_txt = self.font.render("POWER", True, WHITE)
+                txt_w = pow_txt.get_width()
+                txt_h = pow_txt.get_height()
+                bg_surf = pygame.Surface((txt_w + 10, txt_h + 4), pygame.SRCALPHA)
+                bg_surf.fill((10, 10, 10, 180))
+                
+                dest_x = bar_x + bar_w // 2
+                dest_y = bar_y + bar_h // 2
+                bg_rect = bg_surf.get_rect(center=(dest_x, dest_y))
+                self.screen.blit(bg_surf, bg_rect)
+                
+                txt_rect = pow_txt.get_rect(center=(dest_x, dest_y))
+                self.screen.blit(pow_txt, txt_rect)
             
             pygame.display.flip()
             self.clock.tick(FPS)
