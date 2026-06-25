@@ -10,6 +10,17 @@ from table import Table
 from cue import Cue
 from physics import PhysicsEngine
 
+def get_custom_font(size, bold=False, italic=False):
+    font_names = ['Segoe UI', 'Trebuchet MS', 'Arial']
+    for name in font_names:
+        font_path = pygame.font.match_font(name, bold=bold, italic=italic)
+        if font_path:
+            try:
+                return pygame.font.Font(font_path, size)
+            except Exception:
+                continue
+    return pygame.font.SysFont('Arial', size, bold=bold, italic=italic)
+
 class SoundGenerator:
     """Class stub untuk efek suara (non-fungsional pada Week 5)"""
     def __init__(self):
@@ -26,13 +37,21 @@ class Button:
         self.color = color
         self.hover_color = BUTTON_HOVER
         self.is_hovered = False
-        self.font = pygame.font.SysFont('Arial', 20, bold=True)
+        self.font = get_custom_font(20, bold=True)
 
     def draw(self, surface):
-        color = self.color if not self.is_hovered else self.hover_color
-        pygame.draw.rect(surface, (10, 10, 10), (self.rect.x + 2, self.rect.y + 2, self.rect.w, self.rect.h), border_radius=8)
-        pygame.draw.rect(surface, color, self.rect, border_radius=8)
-        pygame.draw.rect(surface, WHITE, self.rect, 2, border_radius=8)
+        # Shadow with 1px offset
+        pygame.draw.rect(surface, (10, 10, 10), (self.rect.x + 1, self.rect.y + 1, self.rect.w, self.rect.h), border_radius=8)
+        pygame.draw.rect(surface, self.color, self.rect, border_radius=8)
+        
+        if self.is_hovered:
+            temp_surf = pygame.Surface((self.rect.w, self.rect.h), pygame.SRCALPHA)
+            r, g, b = self.hover_color
+            pygame.draw.rect(temp_surf, (r, g, b, 180), (0, 0, self.rect.w, self.rect.h), border_radius=8)
+            surface.blit(temp_surf, self.rect.topleft)
+            pygame.draw.rect(surface, ACCENT_COLOR, self.rect, 1, border_radius=8)
+        else:
+            pygame.draw.rect(surface, ACCENT_DIM, self.rect, 1, border_radius=8)
         
         text_surf = self.font.render(self.text, True, WHITE)
         text_rect = text_surf.get_rect(center=self.rect.center)
@@ -56,7 +75,7 @@ class TextInput:
         self.active = False
         self.color_inactive = GREY
         self.color_active = ACCENT_COLOR
-        self.font = pygame.font.SysFont('Arial', 22)
+        self.font = get_custom_font(22)
         self.suggestions = []
 
     def update_suggestions(self, all_names):
@@ -142,12 +161,12 @@ class GameManager:
         pygame.display.set_caption("Billiard 8-Ball Master - Final Project")
         self.clock = pygame.time.Clock()
         
-        self.font = pygame.font.SysFont('Arial', 18)
+        self.font = get_custom_font(18)
         self.debug_font = pygame.font.SysFont('Consolas', 14)
-        self.title_font = pygame.font.SysFont('Arial', 48, bold=True)
-        self.header_font = pygame.font.SysFont('Arial', 28, bold=True)
-        self.ball_font = pygame.font.SysFont('Arial', 10, bold=True)
-        self.ui_ball_font = pygame.font.SysFont('Arial', 12, bold=True)
+        self.title_font = get_custom_font(48, bold=True)
+        self.header_font = get_custom_font(28, bold=True)
+        self.ball_font = get_custom_font(10, bold=True)
+        self.ui_ball_font = get_custom_font(12, bold=True)
         
         self.state = STATE_MENU
         self.sound_manager = SoundGenerator()
@@ -605,6 +624,9 @@ class GameManager:
         title = self.title_font.render("BILLIARD MASTER", True, WHITE)
         self.screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 100))
         
+        line_y = 100 + title.get_height() + 15
+        pygame.draw.line(self.screen, ACCENT_DIM, (SCREEN_WIDTH//2 - 100, line_y), (SCREEN_WIDTH//2 + 100, line_y), 1)
+        
         for btn in [self.btn_start, self.btn_leaderboard, self.btn_tutorial, self.btn_team, self.btn_settings, self.btn_quit]:
             btn.check_hover(mouse_pos)
             btn.draw(self.screen)
@@ -653,9 +675,9 @@ class GameManager:
         panel_x = (SCREEN_WIDTH - panel_w) // 2
         panel_y = (SCREEN_HEIGHT - panel_h) // 2
         
-        pygame.draw.rect(self.screen, (10, 10, 10), (panel_x + 5, panel_y + 5, panel_w, panel_h), border_radius=15)
-        pygame.draw.rect(self.screen, DARK_GREY, (panel_x, panel_y, panel_w, panel_h), border_radius=15)
-        pygame.draw.rect(self.screen, ACCENT_COLOR, (panel_x, panel_y, panel_w, panel_h), 2, border_radius=15)
+        pygame.draw.rect(self.screen, (10, 10, 10), (panel_x + 5, panel_y + 5, panel_w, panel_h), border_radius=12)
+        pygame.draw.rect(self.screen, DARK_GREY, (panel_x, panel_y, panel_w, panel_h), border_radius=12)
+        pygame.draw.rect(self.screen, ACCENT_COLOR, (panel_x, panel_y, panel_w, panel_h), 1, border_radius=12)
         
         title_surf = self.header_font.render(title, True, ACCENT_COLOR)
         title_rect = title_surf.get_rect(center=(SCREEN_WIDTH//2, panel_y + 40))
@@ -716,7 +738,7 @@ class GameManager:
         self.btn_back_panel.draw(self.screen)
 
     def draw_game(self, mouse_pos):
-        pygame.draw.rect(self.screen, DARK_GREY, (0, 0, SCREEN_WIDTH, 80))
+        pygame.draw.rect(self.screen, (12, 14, 18), (0, 0, SCREEN_WIDTH, 80))
         
         p1_type = self.player_assignments[1] if self.player_assignments[1] else "OPEN"
         p1_col = ACCENT_COLOR if self.turn == 1 else GREY
@@ -742,8 +764,20 @@ class GameManager:
             fill_w = int((bar_w - 4) * ratio)
             fill_color = (255, int(255 * (1 - ratio)), 0) 
             pygame.draw.rect(self.screen, fill_color, (bar_x + 2, bar_y + 2, fill_w, bar_h - 4), border_radius=3)
-        pow_txt = self.ball_font.render("POWER", True, WHITE)
-        self.screen.blit(pow_txt, (bar_x + bar_w // 2 - pow_txt.get_width() // 2, bar_y + 8))
+            
+            pow_txt = self.ball_font.render("POWER", True, WHITE)
+            txt_w = pow_txt.get_width()
+            txt_h = pow_txt.get_height()
+            bg_surf = pygame.Surface((txt_w + 10, txt_h + 4), pygame.SRCALPHA)
+            bg_surf.fill((10, 10, 10, 180))
+            
+            dest_x = bar_x + bar_w // 2
+            dest_y = bar_y + bar_h // 2
+            bg_rect = bg_surf.get_rect(center=(dest_x, dest_y))
+            self.screen.blit(bg_surf, bg_rect)
+            
+            txt_rect = pow_txt.get_rect(center=(dest_x, dest_y))
+            self.screen.blit(pow_txt, txt_rect)
 
         self.table.draw(self.screen)
         for ball in self.balls: ball.draw(self.screen, self.ball_font)
@@ -785,9 +819,12 @@ class GameManager:
         overlay.set_alpha(150)
         overlay.fill(BLACK)
         self.screen.blit(overlay, (0,0))
-        text = self.title_font.render("GAME PAUSED", True, WHITE)
+        text = self.title_font.render("GAME PAUSED", True, ACCENT_COLOR)
         rect = text.get_rect(center=(SCREEN_WIDTH//2, SCREEN_HEIGHT//2 - 120))
         self.screen.blit(text, rect)
+        
+        line_y = rect.bottom + 15
+        pygame.draw.line(self.screen, ACCENT_DIM, (SCREEN_WIDTH//2 - 100, line_y), (SCREEN_WIDTH//2 + 100, line_y), 1)
         
         for btn in [self.btn_resume, self.btn_restart, self.btn_settings_paused, self.btn_exit_to_menu]:
             btn.check_hover(mouse_pos)
