@@ -285,6 +285,7 @@ class GameManager:
         self.ai_target_angle = 0
         self.ai_target_power = 0
         self.player_history = self.load_player_history()
+        self.debug_mode = DEBUG_MODE
 
         self.init_ui()
         self.init_input_ui()
@@ -329,8 +330,9 @@ class GameManager:
         
         self.btn_back_panel = Button(cx - 100, 580, 200, 40, "BACK", GREY)
         
-        self.btn_toggle_sound = Button(cx - 100, 300, 200, 50, "SOUND: [ ON ]")
-        self.btn_sensitivity = Button(cx - 100, 370, 200, 50, f"SENSITIVITY: < {self.sens_names[self.current_sens_idx]} >")
+        self.btn_toggle_sound = Button(cx - 100, 280, 200, 50, "SOUND: [ ON ]")
+        self.btn_sensitivity = Button(cx - 100, 350, 200, 50, f"SENSITIVITY: < {self.sens_names[self.current_sens_idx]} >")
+        self.btn_debug = Button(cx - 100, 450, 200, 50, f"DEBUG: [ {'ON' if self.debug_mode else 'OFF'} ]")
         
         self.btn_pause_game = Button(SCREEN_WIDTH - 120, 20, 100, 40, "MENU", GREY)
         
@@ -349,6 +351,10 @@ class GameManager:
         self.input_p2 = TextInput(cx - 150, 335, 300, 45, "Player 2 Name")
         self.btn_difficulty = Button(cx - 150, 335, 300, 45, "DIFFICULTY: MEDIUM", ACCENT_COLOR)
         self.btn_start_match = Button(cx - 100, 410, 200, 45, "START MATCH", GREEN)
+
+    def toggle_debug_mode(self):
+        self.debug_mode = not self.debug_mode
+        self.btn_debug.text = f"DEBUG: [ {'ON' if self.debug_mode else 'OFF'} ]"
 
     def reset_game_objects(self):
         self.table = Table()
@@ -386,6 +392,9 @@ class GameManager:
         self.scores = {1: [], 2: []}
         self.is_moving = False
         self.ball_potted_this_turn = False
+        self.foul_this_turn = False
+        self.cue_ball_hit_something = False
+        self.first_hit_ball = None
         self.message = "Break Shot!"
         self.message_timer = 120
         self.winner_text = ""
@@ -400,6 +409,10 @@ class GameManager:
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     sys.exit()
+                
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_F3:
+                        self.toggle_debug_mode()
                 
                 if self.state == STATE_MENU:
                     if self.btn_start.is_clicked(event): 
@@ -476,6 +489,9 @@ class GameManager:
                                     shot_power = self.cue.power
                                     if self.cue.handle_click():
                                         self.is_moving = True
+                                        self.foul_this_turn = False
+                                        self.cue_ball_hit_something = False
+                                        self.first_hit_ball = None
                                         vol = min(1.0, shot_power / self.cue.max_power) if shot_power > 0 else 0.5
                                         self.sound_manager.play('cue_hit', volume=vol)
                             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3:
@@ -501,6 +517,8 @@ class GameManager:
                             self.current_sens_idx = (self.current_sens_idx + 1) % 5
                             self.btn_sensitivity.text = f"SENSITIVITY: < {self.sens_names[self.current_sens_idx]} >"
                             if self.cue: self.cue.sensitivity = self.sens_values[self.current_sens_idx]
+                        if self.btn_debug.is_clicked(event):
+                            self.toggle_debug_mode()
                         if event.type == pygame.KEYDOWN:
                             if self.btn_sensitivity.is_hovered:
                                 if event.key == pygame.K_LEFT:
@@ -548,7 +566,7 @@ class GameManager:
             elif self.state == STATE_LEADERBOARD:
                 self.draw_leaderboard(mouse_pos)
 
-            if DEBUG_MODE: self.draw_debug_info()
+            if self.debug_mode: self.draw_debug_info()
             
             self.clock.tick(FPS)
             pygame.display.flip()
@@ -581,6 +599,12 @@ class GameManager:
                     b1 = self.balls[i]
                     b2 = self.balls[j]
                     if PhysicsEngine.resolve_collision(b1, b2):
+                        # Lacak tumbukan pertama bola putih
+                        if b1.number == 0 or b2.number == 0:
+                            self.cue_ball_hit_something = True
+                            if self.first_hit_ball is None:
+                                self.first_hit_ball = b2 if b1.number == 0 else b1
+                                
                         impact = (b1.velocity - b2.velocity).length()
                         if impact > 0.5:
                             vol = min(1.0, impact / 12.0)
@@ -598,6 +622,45 @@ class GameManager:
         if self.is_moving and moving_count == 0:
             self.is_moving = False
             self.cue.state = 0
+            
+            # Cek pelanggaran saat semua bola berhenti bergerak
+            if not self.cue_ball_hit_something and not self.foul_this_turn:
+                self.foul_this_turn = True
+                self.message = "FOUL! No Ball Hit"
+                self.message_timer = 90
+            elif self.first_hit_ball is not None:
+                p_type = self.player_assignments[self.turn]
+                if p_type is not None:
+                    first_num = self.first_hit_ball.number
+                    is_solid = (1 <= first_num <= 7)
+                    is_stripe = (9 <= first_num <= 15)
+                    
+                    if p_type == 'solid' and not is_solid:
+                        if is_stripe:
+                            self.foul_this_turn = True
+                            self.message = "FOUL! Hit Opponent's Ball First"
+                            self.message_timer = 90
+                        elif first_num == 8:
+                            solids_left = any(b for b in self.balls if 1 <= b.number <= 7 and not b.potted)
+                            if solids_left:
+                                self.foul_this_turn = True
+                                self.message = "FOUL! Hit 8-Ball First"
+                                self.message_timer = 90
+                    elif p_type == 'stripe' and not is_stripe:
+                        if is_solid:
+                            self.foul_this_turn = True
+                            self.message = "FOUL! Hit Opponent's Ball First"
+                            self.message_timer = 90
+                        elif first_num == 8:
+                            stripes_left = any(b for b in self.balls if 9 <= b.number <= 15 and not b.potted)
+                            if stripes_left:
+                                self.foul_this_turn = True
+                                self.message = "FOUL! Hit 8-Ball First"
+                                self.message_timer = 90
+                                
+            if self.foul_this_turn:
+                self.ball_potted_this_turn = False  # Paksa ganti giliran jika pelanggaran
+                
             if self.state != STATE_GAME_OVER:
                 self.switch_turn()
             
@@ -605,8 +668,10 @@ class GameManager:
 
     def handle_pot(self, ball):
         if ball.type == "cue":
+            self.foul_this_turn = True
             self.ball_potted_this_turn = False
             self.message = "FOUL! Cue Ball Potted"
+            self.message_timer = 90
             ball.reset()
         elif ball.type == "eight":
             current_player = self.turn
@@ -651,16 +716,20 @@ class GameManager:
                 self.ball_potted_this_turn = False
 
     def switch_turn(self):
-        player_name = self.p1_name if self.turn == 2 else self.p2_name
         if not self.ball_potted_this_turn:
             self.turn = 2 if self.turn == 1 else 1
             next_name = self.p1_name if self.turn == 1 else self.p2_name
-            self.message = f"Turn: {next_name}"
+            if self.foul_this_turn:
+                # Jangan menimpa pesan pelanggaran yang sudah diatur
+                pass
+            else:
+                self.message = f"Turn: {next_name}"
         else:
             current_name = self.p1_name if self.turn == 1 else self.p2_name
             self.message = f"Continue: {current_name}"
-        self.message_timer = 60
+        self.message_timer = 90 if self.foul_this_turn else 60
         self.ball_potted_this_turn = False
+        self.foul_this_turn = False
 
     def draw_menu(self, mouse_pos):
         title = self.title_font.render("BILLIARD MASTER", True, WHITE)
@@ -758,10 +827,12 @@ class GameManager:
         self.btn_toggle_sound.draw(self.screen)
         self.btn_sensitivity.check_hover(mouse_pos)
         self.btn_sensitivity.draw(self.screen)
+        self.btn_debug.check_hover(mouse_pos)
+        self.btn_debug.draw(self.screen)
         
         # Draw instruction text
         help_text = self.font.render("(Use Left/Right arrow keys to adjust)", True, GREY)
-        self.screen.blit(help_text, (SCREEN_WIDTH//2 - help_text.get_width()//2, 430))
+        self.screen.blit(help_text, (SCREEN_WIDTH//2 - help_text.get_width()//2, 410))
         
         self.btn_back_panel.check_hover(mouse_pos)
         self.btn_back_panel.draw(self.screen)
@@ -914,6 +985,9 @@ class GameManager:
             self.ai_timer -= 1
             if self.ai_timer <= 0:
                 vol = min(1.0, self.ai_target_power / self.cue.max_power) if self.ai_target_power > 0 else 0.5
+                self.foul_this_turn = False
+                self.cue_ball_hit_something = False
+                self.first_hit_ball = None
                 self.cue.shoot()
                 self.sound_manager.play('cue_hit', volume=vol)
                 self.is_moving = True
@@ -943,7 +1017,14 @@ class GameManager:
     def draw_debug_info(self):
         fps = int(self.clock.get_fps())
         fps_text = self.debug_font.render(f"FPS: {fps}", True, GREEN)
-        self.screen.blit(fps_text, (10, SCREEN_HEIGHT - 30))
+        text_width = fps_text.get_width()
+        text_height = fps_text.get_height()
+        rect_w, rect_h = text_width + 10, text_height + 6
+        rect_x = 5
+        rect_y = SCREEN_HEIGHT - rect_h - 5
+        pygame.draw.rect(self.screen, (10, 10, 10, 180), (rect_x, rect_y, rect_w, rect_h), border_radius=4)
+        pygame.draw.rect(self.screen, GREY, (rect_x, rect_y, rect_w, rect_h), 1, border_radius=4)
+        self.screen.blit(fps_text, (rect_x + 5, rect_y + 3))
 
 if __name__ == "__main__":
     game = GameManager()

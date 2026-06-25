@@ -72,3 +72,4 @@ VS Code settings
 Ignore local leaderboard data (optional, supaya data pemain lokal tidak ikut ke-upload)
 
 leaderboard.json
+player_history.json
