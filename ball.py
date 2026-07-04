@@ -69,18 +69,20 @@ class Ball:
         
         if self.type == "stripe":
             pygame.draw.circle(surface, WHITE, (int(self.pos.x), int(self.pos.y)), self.radius - 3)
-            rect_h = 10
+            rect_h = 6
             pygame.draw.rect(surface, self.color, (self.pos.x - self.radius + 2, self.pos.y - rect_h//2, (self.radius*2) - 4, rect_h))
         
         if self.number > 0:
-            pygame.draw.circle(surface, WHITE, (int(self.pos.x), int(self.pos.y)), 6)
+            if self.type != "stripe":
+                pygame.draw.circle(surface, WHITE, (int(self.pos.x), int(self.pos.y)), 6)
             if font:
                 text_surf = font.render(str(self.number), True, BLACK)
                 text_rect = text_surf.get_rect(center=(int(self.pos.x), int(self.pos.y)))
                 surface.blit(text_surf, text_rect)
 
-        highlight_pos = (int(self.pos.x - self.radius * 0.3), int(self.pos.y - self.radius * 0.3))
-        pygame.draw.circle(surface, (255, 255, 255), highlight_pos, 2)
+        if self.type != "stripe":
+            highlight_pos = (int(self.pos.x - self.radius * 0.3), int(self.pos.y - self.radius * 0.3))
+            pygame.draw.circle(surface, (255, 255, 255), highlight_pos, 2)
 
 class CueBall(Ball):
     def __init__(self, x, y):

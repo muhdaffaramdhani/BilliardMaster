@@ -852,10 +852,6 @@ class GameManager:
         self.btn_debug.check_hover(mouse_pos)
         self.btn_debug.draw(self.screen)
         
-        # Draw instruction text
-        help_text = self.font.render("(Use Left/Right arrow keys to adjust)", True, GREY)
-        self.screen.blit(help_text, (SCREEN_WIDTH//2 - help_text.get_width()//2, 410))
-        
         self.btn_back_panel.check_hover(mouse_pos)
         self.btn_back_panel.draw(self.screen)
 
